@@ -10,7 +10,7 @@ tags:
   - appsheet
 scripts:
 references:
-  - extension-changeset.md            # files in references/ to list in the UI
+  - extension-changeset.md
 Long Description: A set of standard rules and patterns for designing, building, and consulting on Google AppSheet applications (no-code), including a 4-step process (interview → ERD review → create framework data file → export configuration) and a specification for exporting JSON changeset for the auto-fill extension "Learn AppSheet". Always use this skill when users mention AppSheet, building apps without coding, designing tables/columns/slices/views/actions/bots on AppSheet, AppSheet formulas, AppSheet permissions (by email, USEREMAIL or login via UserSettings), state processes, auto-fill extensions/JSON changeset extensions, or want to digitize business processes (sales, inventory, revenue and expenditure, HR, timekeeping) using AppSheet — even if they only describe the business process and haven't explicitly mentioned "AppSheet".
 ---
 
