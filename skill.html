@@ -91,20 +91,62 @@ function renderFiles(scripts, refs) {
     </div>`;
 }
 
+/* ── Load skills catalog helper ──────────────────────────── */
+async function loadSkillsJson() {
+  try {
+    const r = await fetch('skills.json');
+    if (r.ok) return await r.json();
+  } catch (e) {}
+
+  if (location.hostname.endsWith('github.io')) {
+    const owner = location.hostname.split('.')[0];
+    const repo = location.pathname.split('/').filter(Boolean)[0] || 'docs-hub';
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills.json`;
+    const r = await fetch(rawUrl);
+    if (r.ok) return await r.json();
+  }
+
+  const fallbackUrl = 'https://raw.githubusercontent.com/atiqursafayat/docs-hub/main/skills.json';
+  const r = await fetch(fallbackUrl);
+  if (r.ok) return await r.json();
+  throw new Error('Could not load skills.json');
+}
+
+/* ── Fetch SKILL.md helper ────────────────────────────────── */
+async function fetchSkillMd(slug) {
+  // 1. Try local / relative fetch
+  try {
+    const r = await fetch(`skills/${slug}/SKILL.md`);
+    if (r.ok) {
+      const text = await r.text();
+      if (!text.trim().startsWith('<!DOCTYPE html>')) return text;
+    }
+  } catch (e) {}
+
+  // 2. Fallback to raw GitHub content (bypasses GitHub Pages Jekyll 404s)
+  const owner = location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'atiqursafayat';
+  const repo = location.pathname.split('/').filter(Boolean)[0] || 'docs-hub';
+  const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills/${slug}/SKILL.md`;
+
+  const r = await fetch(rawUrl);
+  if (r.ok) return await r.text();
+
+  throw new Error(`Skill file not found at skills/${slug}/SKILL.md (HTTP ${r.status})`);
+}
+
 /* ── Load sidebar skill list ─────────────────────────────── */
-fetch('skills.json')
-  .then(r => r.json())
+loadSkillsJson()
   .then(skills => {
     document.getElementById('sidebar-skills').innerHTML =
       skills.map(s => `<a class="nav-link${s.slug===slug?' active':''}" href="skill.html?slug=${s.slug}">${s.icon} ${s.name}</a>`).join('');
-  });
+  })
+  .catch(() => {});
 
 /* ── Load and render SKILL.md ────────────────────────────── */
 if (!slug) {
   document.getElementById('content').innerHTML = '<div class="err">No skill specified. <a href="index.html">← Back to catalog</a></div>';
 } else {
-  fetch(`skills/${slug}/SKILL.md`)
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+  fetchSkillMd(slug)
     .then(raw => {
       const { meta, body } = parseFrontmatter(raw);
 
