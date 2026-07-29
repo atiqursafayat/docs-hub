@@ -1,94 +1,434 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AgentSkills — AI Agent Skills Docs</title>
-  <meta name="description" content="A minimal docs site for AI agent skills. Each skill has a SKILL.md with scripts and references." />
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentSkills — AI Agent Documentation</title>
+  <meta name="description" content="Composable skills & tools documentation library for AI agents.">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-<div class="shell">
-
-  <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar">
-    <a class="sidebar-brand" href="index.html">
-      <div class="brand-icon">⚡</div>AgentSkills
-    </a>
-    <nav>
-      <div class="nav-label">Overview</div>
-      <a class="nav-link active" href="index.html">Home</a>
-      <div class="nav-label" style="margin-top:6px">Skills</div>
-      <div id="sidebar-skills"><!-- populated by JS --></div>
-    </nav>
-  </aside>
-
-  <!-- Main -->
-  <div class="main">
-    <div class="topbar">
-      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
-      <span>Home</span>
-    </div>
-
-    <div class="page">
-      <div class="hero">
-        <h1>AI Agent Skills</h1>
-        <p>A minimal docs library for composable agent skills. Each skill is a <code>SKILL.md</code> file with optional scripts and references.</p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="skill.html?slug=web-search">View a Skill →</a>
+  <div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand" onclick="navigateTo('/')">
+        <div class="brand-icon">⚡</div>
+        <span>AgentSkills</span>
+      </div>
+      <nav>
+        <div class="nav-label">Overview</div>
+        <a class="nav-link" id="nav-home" onclick="navigateTo('/')">Home</a>
+        <div class="nav-label">Skills Catalog</div>
+        <div id="sidebar-skills">
+          <!-- Dynamically populated skills links -->
         </div>
-      </div>
+      </nav>
+    </aside>
 
-      <div class="nav-label" style="margin:0 0 12px">All Skills</div>
-      <div class="grid" id="grid">
-        <div class="loading">Loading skills…</div>
-      </div>
+    <!-- Main -->
+    <div class="main">
+      <header class="topbar">
+        <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <a onclick="navigateTo('/')">AgentSkills</a>
+        <span class="sep">/</span>
+        <span id="breadcrumb">Catalog</span>
+      </header>
+
+      <main class="page" id="app">
+        <div class="loading">Loading AgentSkills library...</div>
+      </main>
     </div>
   </div>
 
-</div>
+  <script>
+    // Global State
+    let skillsCatalog = [];
 
-<script>
-async function loadSkillsJson() {
-  try {
-    const r = await fetch('skills.json');
-    if (r.ok) return await r.json();
-  } catch (e) {}
+    // Base Path Resolution for GitHub Pages vs Local
+    function getRepoBasePath() {
+      const isGhPages = location.hostname.endsWith('github.io');
+      if (!isGhPages) return '';
+      const pathParts = location.pathname.split('/').filter(Boolean);
+      return pathParts.length > 0 ? '/' + pathParts[0] : '';
+    }
 
-  if (location.hostname.endsWith('github.io')) {
-    const owner = location.hostname.split('.')[0];
-    const repo = location.pathname.split('/').filter(Boolean)[0] || 'docs-hub';
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills.json`;
-    const r = await fetch(rawUrl);
-    if (r.ok) return await r.json();
-  }
+    function getSkillUrl(slug) {
+      const base = getRepoBasePath();
+      return `${base}/${slug}`;
+    }
 
-  const fallbackUrl = 'https://raw.githubusercontent.com/atiqursafayat/docs-hub/main/skills.json';
-  const r = await fetch(fallbackUrl);
-  if (r.ok) return await r.json();
-  throw new Error('Could not load skills.json');
-}
+    // Extract Slug from URL Path or Hash (#/appsheet-builder or /docs-hub/appsheet-builder)
+    function getSlugFromUrl() {
+      // 1. Check Hash first (e.g. #/appsheet-builder or #appsheet-builder)
+      if (window.location.hash) {
+        const hash = window.location.hash.replace(/^#\/?/, '').trim();
+        if (hash) return hash;
+      }
 
-loadSkillsJson()
-  .then(skills => {
-    // Sidebar
-    document.getElementById('sidebar-skills').innerHTML =
-      skills.map(s => `<a class="nav-link" href="skill.html?slug=${s.slug}">${s.icon} ${s.name}</a>`).join('');
+      // 2. Check Pathname (e.g. /docs-hub/appsheet-builder)
+      let path = window.location.pathname.replace(/\/index\.html$/, '');
+      let segments = path.split('/').filter(Boolean);
 
-    // Grid
-    document.getElementById('grid').innerHTML = skills.map(s => `
-      <a class="card" href="skill.html?slug=${s.slug}">
-        <div class="card-icon">${s.icon}</div>
-        <h3>${s.name}</h3>
-        <p>${s.desc}</p>
-        <div class="card-foot">
-          <span class="badge ${s.status}">${s.status}</span>
-          <span class="badge tag">${s.category}</span>
+      // Remove repo name 'docs-hub' if present at start
+      if (segments.length > 0 && (segments[0] === 'docs-hub' || segments[0] === location.hostname.split('.')[0])) {
+        segments.shift();
+      }
+      // Remove 'skills' segment if present
+      if (segments.length > 0 && segments[0] === 'skills') {
+        segments.shift();
+      }
+
+      if (segments.length > 0) {
+        return segments.join('/');
+      }
+      return null;
+    }
+
+    // Navigation Handler for SPA without Page Reload
+    function navigateTo(url, event) {
+      if (event) event.preventDefault();
+      
+      const fullUrl = url.startsWith('/') && getRepoBasePath() && !url.startsWith(getRepoBasePath())
+        ? getRepoBasePath() + url
+        : url;
+
+      window.history.pushState({}, '', fullUrl);
+      renderRoute();
+    }
+
+    window.onpopstate = () => renderRoute();
+
+    // Multi-tier Fallback File Fetcher (Local -> raw.githubusercontent.com)
+    async function fetchFileText(relativePath) {
+      const cleanPath = relativePath.replace(/^\//, '');
+      // 1. Try direct fetch
+      try {
+        const res = await fetch(cleanPath);
+        if (res.ok) {
+          const text = await res.text();
+          if (!text.trim().startsWith('<!DOCTYPE html>')) return text;
+        }
+      } catch (e) {}
+
+      // 2. Fallback to raw GitHub content
+      const owner = location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'atiqursafayat';
+      const repo = location.pathname.split('/').filter(Boolean)[0] || 'docs-hub';
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${cleanPath}`;
+
+      const res = await fetch(rawUrl);
+      if (res.ok) return await res.text();
+
+      throw new Error(`File not found: ${cleanPath} (HTTP ${res.status})`);
+    }
+
+    // Load skills.json Catalog
+    async function loadSkillsCatalog() {
+      if (skillsCatalog.length > 0) return skillsCatalog;
+      try {
+        const text = await fetchFileText('skills.json');
+        skillsCatalog = JSON.parse(text);
+        renderSidebar();
+        return skillsCatalog;
+      } catch (e) {
+        console.error("Failed to load skills catalog:", e);
+        return [];
+      }
+    }
+
+    // Render Sidebar Items
+    function renderSidebar(currentSlug = null) {
+      const navContainer = document.getElementById('sidebar-skills');
+      const homeNav = document.getElementById('nav-home');
+      
+      if (!currentSlug) {
+        homeNav.classList.add('active');
+      } else {
+        homeNav.classList.remove('active');
+      }
+
+      navContainer.innerHTML = skillsCatalog.map(skill => {
+        const isActive = currentSlug === skill.slug ? 'active' : '';
+        const url = getSkillUrl(skill.slug);
+        return `
+          <a class="nav-link ${isActive}" onclick="navigateTo('${url}', event)">
+            <span>${skill.icon}</span> ${skill.name}
+          </a>
+        `;
+      }).join('');
+    }
+
+    // Main Router
+    async function renderRoute() {
+      const slug = getSlugFromUrl();
+      await loadSkillsCatalog();
+
+      if (!slug) {
+        renderCatalogPage();
+      } else {
+        renderSkillPage(slug);
+      }
+    }
+
+    // Mode 1: Render Home / Catalog Page
+    function renderCatalogPage() {
+      renderSidebar(null);
+      document.getElementById('breadcrumb').textContent = 'Catalog';
+
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div class="hero">
+          <h1>AI Agent Skills Library</h1>
+          <p>A minimalist, single-page documentation system for composable AI skills. Each skill is served dynamically directly from its raw source folder.</p>
         </div>
-      </a>`).join('');
-  })
-  .catch(() => {
-    document.getElementById('grid').innerHTML = '<div class="err">Could not load skills.json — run via a local HTTP server.</div>';
-  });
-</script>
+
+        <div class="section-banner">All Available Skills (${skillsCatalog.length})</div>
+        <div class="grid">
+          ${skillsCatalog.map(skill => `
+            <a class="card" onclick="navigateTo('${getSkillUrl(skill.slug)}', event)">
+              <div class="card-icon">${skill.icon}</div>
+              <h3>${skill.name}</h3>
+              <p>${skill.desc}</p>
+              <div class="card-foot">
+                <span class="badge ${skill.status}">${skill.status}</span>
+                <span class="badge tag">${skill.category}</span>
+              </div>
+            </a>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Helper: Parse YAML Frontmatter
+    function parseFrontmatter(raw) {
+      const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+      if (!match) return { meta: {}, body: raw };
+
+      const meta = {};
+      const yamlLines = match[1].split('\n');
+      let currentArrayKey = null;
+
+      yamlLines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return;
+
+        if (trimmed.startsWith('- ') && currentArrayKey) {
+          meta[currentArrayKey].push(trimmed.replace(/^- /, '').trim());
+          return;
+        }
+
+        const colonIdx = line.indexOf(':');
+        if (colonIdx !== -1) {
+          const key = line.slice(0, colonIdx).trim();
+          const val = line.slice(colonIdx + 1).trim();
+
+          if (!val) {
+            meta[key] = [];
+            currentArrayKey = key;
+          } else {
+            currentArrayKey = null;
+            meta[key] = val.replace(/^["']|["']$/g, '');
+          }
+        }
+      });
+
+      return { meta, body: match[2] };
+    }
+
+    // Mode 2: Sequential Single-Page Multi-File Skill Renderer
+    async function renderSkillPage(slug) {
+      renderSidebar(slug);
+      const app = document.getElementById('app');
+      app.innerHTML = `<div class="loading">Loading skill documentation for <strong>${slug}</strong>...</div>`;
+
+      try {
+        // 1. Fetch SKILL.md
+        const skillPath = `skills/${slug}/SKILL.md`;
+        const rawSkillMd = await fetchFileText(skillPath);
+        const { meta, body } = parseFrontmatter(rawSkillMd);
+
+        const title = meta.name || slug;
+        const icon = meta.icon || '⚡';
+        const status = meta.status || 'stable';
+        const version = meta.version || 'v1.0';
+        const category = meta.category || 'General';
+        const description = meta.description || '';
+        
+        document.getElementById('breadcrumb').innerHTML = `
+          <a onclick="navigateTo('/')">Catalog</a> <span class="sep">/</span> <span>${title}</span>
+        `;
+
+        // Normalize lists of scripts and references
+        const scriptsList = Array.isArray(meta.scripts) ? meta.scripts : [];
+        const referencesList = Array.isArray(meta.references) ? meta.references : [];
+
+        // Build Jump Navigation Pills
+        const tocPills = [
+          `<a href="#file-skill-md" class="toc-pill"><span class="pill-icon">📄</span> SKILL.md</a>`,
+          ...scriptsList.map(s => `<a href="#file-script-${s.replace(/[^a-zA-Z0-9]/g, '-')}" class="toc-pill"><span class="pill-icon">⚡</span> ${s}</a>`),
+          ...referencesList.map(r => `<a href="#file-ref-${r.replace(/[^a-zA-Z0-9]/g, '-')}" class="toc-pill"><span class="pill-icon">📖</span> ${r}</a>`)
+        ];
+
+        // HTML Header Box
+        let html = `
+          <div class="skill-header">
+            <h1><span>${icon}</span> ${title}</h1>
+            <div class="skill-meta">
+              <span class="badge ${status}">${status}</span>
+              <span class="badge tag">${version}</span>
+              <span class="badge tag">${category}</span>
+            </div>
+            ${description ? `<p class="skill-desc">${description}</p>` : ''}
+          </div>
+
+          <div class="skill-toc">
+            ${tocPills.join('')}
+          </div>
+
+          <!-- Section 1: SKILL.md -->
+          <div class="file-block" id="file-skill-md">
+            <div class="file-block-header">
+              <div class="file-title">
+                <span class="file-icon">📄</span>
+                <span>skills/${slug}/SKILL.md</span>
+              </div>
+              <span class="file-type-badge">Primary Skill Specification</span>
+            </div>
+            <div class="file-content doc">
+              ${marked.parse(body)}
+            </div>
+          </div>
+        `;
+
+        // Render Page Skeleton First
+        app.innerHTML = html;
+
+        // 2. Sequentially Fetch and Append Scripts
+        if (scriptsList.length > 0) {
+          const scriptsBanner = document.createElement('div');
+          scriptsBanner.className = 'section-banner';
+          scriptsBanner.textContent = `Scripts & Executable Code (${scriptsList.length})`;
+          app.appendChild(scriptsBanner);
+
+          for (const scriptName of scriptsList) {
+            const scriptId = `file-script-${scriptName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const scriptBlock = document.createElement('div');
+            scriptBlock.className = 'file-block';
+            scriptBlock.id = scriptId;
+
+            scriptBlock.innerHTML = `
+              <div class="file-block-header">
+                <div class="file-title">
+                  <span class="file-icon">⚡</span>
+                  <span>skills/${slug}/scripts/${scriptName}</span>
+                </div>
+                <button class="copy-btn" onclick="copyCodeFromElement('${scriptId}-code', this)">Copy Code</button>
+              </div>
+              <div class="file-content">
+                <div class="loading" style="padding:20px; text-align:left;">Loading ${scriptName}...</div>
+              </div>
+            `;
+            app.appendChild(scriptBlock);
+
+            // Fetch contents
+            try {
+              const codeText = await fetchFileText(`skills/${slug}/scripts/${scriptName}`);
+              const fileExt = scriptName.split('.').pop() || '';
+              scriptBlock.querySelector('.file-content').innerHTML = `
+                <pre><code id="${scriptId}-code">${escapeHtml(codeText)}</code></pre>
+              `;
+            } catch (err) {
+              scriptBlock.querySelector('.file-content').innerHTML = `
+                <div class="err">Could not load script skills/${slug}/scripts/${scriptName}: ${err.message}</div>
+              `;
+            }
+          }
+        }
+
+        // 3. Sequentially Fetch and Append References
+        if (referencesList.length > 0) {
+          const refBanner = document.createElement('div');
+          refBanner.className = 'section-banner';
+          refBanner.textContent = `Reference Documentation (${referencesList.length})`;
+          app.appendChild(refBanner);
+
+          for (const refName of referencesList) {
+            const refId = `file-ref-${refName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const refBlock = document.createElement('div');
+            refBlock.className = 'file-block';
+            refBlock.id = refId;
+
+            refBlock.innerHTML = `
+              <div class="file-block-header">
+                <div class="file-title">
+                  <span class="file-icon">📖</span>
+                  <span>skills/${slug}/references/${refName}</span>
+                </div>
+                <span class="file-type-badge">Reference Doc</span>
+              </div>
+              <div class="file-content doc">
+                <div class="loading" style="padding:20px; text-align:left;">Loading ${refName}...</div>
+              </div>
+            `;
+            app.appendChild(refBlock);
+
+            // Fetch contents
+            try {
+              const refMdText = await fetchFileText(`skills/${slug}/references/${refName}`);
+              const parsedRef = parseFrontmatter(refMdText);
+              refBlock.querySelector('.file-content').innerHTML = marked.parse(parsedRef.body);
+            } catch (err) {
+              refBlock.querySelector('.file-content').innerHTML = `
+                <div class="err">Could not load reference skills/${slug}/references/${refName}: ${err.message}</div>
+              `;
+            }
+          }
+        }
+
+      } catch (err) {
+        console.error(err);
+        app.innerHTML = `
+          <div class="err">
+            <h3>Failed to load skill "${slug}"</h3>
+            <p>${err.message}</p>
+            <br>
+            <button class="btn btn-primary" onclick="navigateTo('/')">Return to Catalog</button>
+          </div>
+        `;
+      }
+    }
+
+    // Helper: Escape HTML
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Helper: Copy Code to Clipboard
+    function copyCodeFromElement(elementId, btn) {
+      const codeEl = document.getElementById(elementId);
+      if (!codeEl) return;
+      navigator.clipboard.writeText(codeEl.textContent).then(() => {
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.background = 'var(--green)';
+        btn.style.color = '#000';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.style.background = '';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Initialize App
+    window.addEventListener('DOMContentLoaded', () => {
+      renderRoute();
+    });
+  </script>
 </body>
 </html>
