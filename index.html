@@ -48,8 +48,27 @@
 </div>
 
 <script>
-fetch('skills.json')
-  .then(r => r.json())
+async function loadSkillsJson() {
+  try {
+    const r = await fetch('skills.json');
+    if (r.ok) return await r.json();
+  } catch (e) {}
+
+  if (location.hostname.endsWith('github.io')) {
+    const owner = location.hostname.split('.')[0];
+    const repo = location.pathname.split('/').filter(Boolean)[0] || 'docs-hub';
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/skills.json`;
+    const r = await fetch(rawUrl);
+    if (r.ok) return await r.json();
+  }
+
+  const fallbackUrl = 'https://raw.githubusercontent.com/atiqursafayat/docs-hub/main/skills.json';
+  const r = await fetch(fallbackUrl);
+  if (r.ok) return await r.json();
+  throw new Error('Could not load skills.json');
+}
+
+loadSkillsJson()
   .then(skills => {
     // Sidebar
     document.getElementById('sidebar-skills').innerHTML =
