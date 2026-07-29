@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AgentSkills — AI Agent Skills Docs</title>
+  <meta name="description" content="A minimal docs site for AI agent skills. Each skill has a SKILL.md with scripts and references." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <a class="sidebar-brand" href="index.html">
+      <div class="brand-icon">⚡</div>AgentSkills
+    </a>
+    <nav>
+      <div class="nav-label">Overview</div>
+      <a class="nav-link active" href="index.html">Home</a>
+      <div class="nav-label" style="margin-top:6px">Skills</div>
+      <div id="sidebar-skills"><!-- populated by JS --></div>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <span>Home</span>
+    </div>
+
+    <div class="page">
+      <div class="hero">
+        <h1>AI Agent Skills</h1>
+        <p>A minimal docs library for composable agent skills. Each skill is a <code>SKILL.md</code> file with optional scripts and references.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="skill.html?slug=web-search">View a Skill →</a>
+        </div>
+      </div>
+
+      <div class="nav-label" style="margin:0 0 12px">All Skills</div>
+      <div class="grid" id="grid">
+        <div class="loading">Loading skills…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+fetch('skills.json')
+  .then(r => r.json())
+  .then(skills => {
+    // Sidebar
+    document.getElementById('sidebar-skills').innerHTML =
+      skills.map(s => `<a class="nav-link" href="skill.html?slug=${s.slug}">${s.icon} ${s.name}</a>`).join('');
+
+    // Grid
+    document.getElementById('grid').innerHTML = skills.map(s => `
+      <a class="card" href="skill.html?slug=${s.slug}">
+        <div class="card-icon">${s.icon}</div>
+        <h3>${s.name}</h3>
+        <p>${s.desc}</p>
+        <div class="card-foot">
+          <span class="badge ${s.status}">${s.status}</span>
+          <span class="badge tag">${s.category}</span>
+        </div>
+      </a>`).join('');
+  })
+  .catch(() => {
+    document.getElementById('grid').innerHTML = '<div class="err">Could not load skills.json — run via a local HTTP server.</div>';
+  });
+</script>
+</body>
+</html>

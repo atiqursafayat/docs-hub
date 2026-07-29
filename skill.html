@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Skill — AgentSkills</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <a class="sidebar-brand" href="index.html">
+      <div class="brand-icon">⚡</div>AgentSkills
+    </a>
+    <nav>
+      <div class="nav-label">Overview</div>
+      <a class="nav-link" href="index.html">Home</a>
+      <div class="nav-label" style="margin-top:6px">Skills</div>
+      <div id="sidebar-skills"><!-- populated by JS --></div>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <a href="index.html">Home</a>
+      <span class="sep">/</span>
+      <span id="crumb">Skill</span>
+    </div>
+
+    <div class="page">
+      <!-- Skill header (injected from frontmatter) -->
+      <div class="skill-header" id="skill-header" style="display:none"></div>
+
+      <!-- File tree panel (scripts/ + references/) -->
+      <div id="files-panel"></div>
+
+      <!-- Rendered SKILL.md body -->
+      <div class="doc" id="content">
+        <div class="loading">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- marked.js for markdown rendering -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script>
+/* ── Helpers ─────────────────────────────────────────────── */
+const slug = new URLSearchParams(location.search).get('slug') || '';
+
+// Parse simple YAML frontmatter between --- delimiters
+function parseFrontmatter(text) {
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m) return { meta: {}, body: text };
+  const meta = {};
+  let key = null;
+  for (const line of m[1].split('\n')) {
+    const item = line.match(/^  - (.+)/);
+    const kv   = line.match(/^(\w[\w-]*):\s*(.*)/);
+    if (item && key) {
+      (meta[key] = meta[key] || []).push(item[1].trim());
+    } else if (kv) {
+      key = kv[1];
+      const v = kv[2].trim();
+      meta[key] = v === '' ? [] : v.startsWith('[') ? v.slice(1,-1).split(',').map(s=>s.trim().replace(/['"]/g,'')) : v.replace(/^['"]|['"]$/g,'');
+    }
+  }
+  return { meta, body: m[2] };
+}
+
+// Render files panel from frontmatter arrays
+function renderFiles(scripts, refs) {
+  if (!scripts.length && !refs.length) return '';
+  const fileIcon = f => f.endsWith('.py') ? '🐍' : f.endsWith('.js') ? '🟨' : f.endsWith('.sh') ? '🔧' : '📄';
+  const col = (title, folder, files) => `
+    <div class="files-col">
+      <div class="files-col-title">${folder}/</div>
+      ${files.map(f => `<a class="file-link" href="skills/${slug}/${folder}/${f}" target="_blank" rel="noopener">${fileIcon(f)} ${f}</a>`).join('') || '<span style="color:var(--dim);font-size:12px">—</span>'}
+    </div>`;
+  return `
+    <div class="files-panel">
+      <div class="files-header">📂 Files</div>
+      <div class="files-cols">
+        ${col('scripts', 'scripts', scripts)}
+        ${col('references', 'references', refs)}
+      </div>
+    </div>`;
+}
+
+/* ── Load sidebar skill list ─────────────────────────────── */
+fetch('skills.json')
+  .then(r => r.json())
+  .then(skills => {
+    document.getElementById('sidebar-skills').innerHTML =
+      skills.map(s => `<a class="nav-link${s.slug===slug?' active':''}" href="skill.html?slug=${s.slug}">${s.icon} ${s.name}</a>`).join('');
+  });
+
+/* ── Load and render SKILL.md ────────────────────────────── */
+if (!slug) {
+  document.getElementById('content').innerHTML = '<div class="err">No skill specified. <a href="index.html">← Back to catalog</a></div>';
+} else {
+  fetch(`skills/${slug}/SKILL.md`)
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+    .then(raw => {
+      const { meta, body } = parseFrontmatter(raw);
+
+      // Page title + breadcrumb
+      const name = meta.name || slug;
+      document.title = `${name} — AgentSkills`;
+      document.getElementById('crumb').textContent = name;
+
+      // Skill header
+      const statusCls = { stable:'stable', beta:'beta', experimental:'tag' }[meta.status] || 'tag';
+      const tags = (meta.tags || []).map(t => `<span class="badge tag">${t}</span>`).join('');
+      const hdr = document.getElementById('skill-header');
+      hdr.style.display = '';
+      hdr.innerHTML = `
+        <h1>${meta.icon || ''} ${name}</h1>
+        <div class="skill-meta">
+          ${meta.status ? `<span class="badge ${statusCls}">${meta.status}</span>` : ''}
+          ${meta.version ? `<span class="badge tag">v${meta.version}</span>` : ''}
+          ${tags}
+        </div>
+        ${meta.description ? `<p class="skill-desc">${meta.description}</p>` : ''}`;
+
+      // Files panel
+      document.getElementById('files-panel').innerHTML =
+        renderFiles(meta.scripts || [], meta.references || []);
+
+      // Markdown body
+      document.getElementById('content').innerHTML = marked.parse(body);
+    })
+    .catch(err => {
+      document.getElementById('content').innerHTML =
+        `<div class="err">Could not load <code>skills/${slug}/SKILL.md</code> — ${err.message}<br><small>Serve locally with <code>python3 -m http.server</code></small></div>`;
+    });
+}
+</script>
+</body>
+</html>

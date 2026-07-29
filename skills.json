@@ -1,0 +1,9 @@
+[
+  { "slug": "web-search",      "name": "Web Search",      "icon": "🔍", "status": "stable", "category": "Search",   "desc": "Search the internet for real-time information." },
+  { "slug": "semantic-search", "name": "Semantic Search", "icon": "🔮", "status": "beta",   "category": "Search",   "desc": "Query a vector store using natural-language similarity." },
+  { "slug": "code-execution",  "name": "Code Execution",  "icon": "💻", "status": "stable", "category": "Code",     "desc": "Run Python, JS, or Bash in a secure sandbox." },
+  { "slug": "data-analysis",   "name": "Data Analysis",   "icon": "📊", "status": "stable", "category": "Code",     "desc": "Analyze CSV/JSON files for statistical insights." },
+  { "slug": "file-operations", "name": "File Operations", "icon": "📁", "status": "stable", "category": "Files",    "desc": "Read, write, and manage files on the filesystem." },
+  { "slug": "memory-recall",   "name": "Memory Recall",   "icon": "🧠", "status": "beta",   "category": "Memory",   "desc": "Store and retrieve facts from persistent memory." },
+  { "slug": "api-request",     "name": "API Request",     "icon": "🌐", "status": "stable", "category": "Network",  "desc": "Make authenticated HTTP calls to external REST APIs." }
+]
