@@ -44,7 +44,6 @@ def render_markdown(text):
     lines = text.splitlines()
     html_lines = []
     in_code = False
-    code_lang = ""
     code_buffer = []
     in_table = False
     table_rows = []
@@ -186,30 +185,32 @@ def build():
                 </div>
                 """
 
-        nav_links = []
-        for s in skills:
-            active_cls = "active" if s["slug"] == slug else ""
-            nav_links.append(f'<a class="nav-link {active_cls}" href="../{s["slug"]}/index.html"><span>{s.get("icon","⚡")}</span> {escape_html(s["name"])}</a>')
-                
-        html = f"""<!DOCTYPE html>
+        # Function to generate page HTML given relative path to root
+        def make_html(rel_root):
+            nav_links = []
+            for s in skills:
+                active_cls = "active" if s["slug"] == slug else ""
+                nav_links.append(f'<a class="nav-link {active_cls}" href="{rel_root}/{s["slug"]}/index.html"><span>{s.get("icon","⚡")}</span> {escape_html(s["name"])}</a>')
+                    
+            return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{escape_html(title)} — AgentSkills</title>
   <meta name="description" content="{escape_html(desc)}">
-  <link rel="stylesheet" href="../../style.css">
+  <link rel="stylesheet" href="{rel_root}/style.css">
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
-      <div class="sidebar-brand" onclick="location.href='../../index.html'">
+      <div class="sidebar-brand" onclick="location.href='{rel_root}/index.html'">
         <div class="brand-icon">⚡</div>
         <span>AgentSkills</span>
       </div>
       <nav>
         <div class="nav-label">Overview</div>
-        <a class="nav-link" href="../../index.html">Home</a>
+        <a class="nav-link" href="{rel_root}/index.html">Home</a>
         <div class="nav-label">Skills Catalog</div>
         <div>
           {''.join(nav_links)}
@@ -219,9 +220,9 @@ def build():
 
     <div class="main">
       <header class="topbar">
-        <a href="../../index.html">AgentSkills</a>
+        <a href="{rel_root}/index.html">AgentSkills</a>
         <span class="sep">/</span>
-        <a href="../../index.html">Catalog</a>
+        <a href="{rel_root}/index.html">Catalog</a>
         <span class="sep">/</span>
         <span>{escape_html(title)}</span>
       </header>
@@ -259,10 +260,20 @@ def build():
 </body>
 </html>
 """
-        out_file = os.path.join(skill_dir, 'index.html')
-        with open(out_file, 'w', encoding='utf-8') as f:
-            f.write(html)
-        print(f"Pre-rendered static HTML for {slug} -> {out_file}")
+
+        # Location 1: Root slug directory e.g., root/{slug}/index.html (for /docs-hub/{slug})
+        root_slug_dir = os.path.join(root_dir, slug)
+        os.makedirs(root_slug_dir, exist_ok=True)
+        with open(os.path.join(root_slug_dir, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(make_html('..'))
+        print(f"Pre-rendered static HTML for {slug} -> {slug}/index.html")
+
+        # Location 2: Skills subfolder e.g., root/skills/{slug}/index.html (for /docs-hub/skills/{slug})
+        skills_slug_dir = os.path.join(root_dir, 'skills', slug)
+        os.makedirs(skills_slug_dir, exist_ok=True)
+        with open(os.path.join(skills_slug_dir, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(make_html('../..'))
+        print(f"Pre-rendered static HTML for {slug} -> skills/{slug}/index.html")
 
 if __name__ == "__main__":
     build()
