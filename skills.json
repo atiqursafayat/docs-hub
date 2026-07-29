@@ -1,4 +1,5 @@
 [
+  { "slug": "appsheet-builder",      "name": "Appsheet Builder",      "icon": "🔍", "status": "stable", "category": "Appsheet",   "desc": "Build Appsheet apps with AI" },
   { "slug": "web-search",      "name": "Web Search",      "icon": "🔍", "status": "stable", "category": "Search",   "desc": "Search the internet for real-time information." },
   { "slug": "semantic-search", "name": "Semantic Search", "icon": "🔮", "status": "beta",   "category": "Search",   "desc": "Query a vector store using natural-language similarity." },
   { "slug": "code-execution",  "name": "Code Execution",  "icon": "💻", "status": "stable", "category": "Code",     "desc": "Run Python, JS, or Bash in a secure sandbox." },
